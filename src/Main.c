@@ -1,5 +1,5 @@
 #include "CH57x_common.h"
-#include "palPwmDma.h"
+#include "video/palPwmDma.h"
 
 int main()
 {
