@@ -8,7 +8,7 @@ const int pixelsShortSync = 8;
 const int pixelsFront = 24;
 const int pixelsBack = 10;
 const int pixelsPerLine = 200;
-const int pixelsReload = 0;
+const int pixelsReload = 9;
 
 const int levelSync = 0;
 const int levelBlack = 8;
@@ -133,18 +133,29 @@ void initVideo()
     frameLines[i++] = (uint32_t)vram[9];
     frameLines[i++] = (uint32_t)vram[9];
 
+    SysTick->CTLR = 0;
+    SysTick->CNT = 0;
+    SysTick->CMP = 6400;
+    SysTick->SR = 0;
     TMR_DMACfg(ENABLE, (uint32_t)frameLines[0], (uint32_t)frameLines[0] + 800 - pixelsReload * 4, Mode_Single);
     TMR_PWMEnable();
     TMR_Enable();
+    //               enable     no int     clk/1      reload
+    SysTick->CTLR = (1 << 0) | (0 << 1) | (1 << 2) | (1 << 3);
 
     TMR_ClearITFlag(TMR_IT_DMA_END);
     TMR_ITCfg(ENABLE, TMR_IT_DMA_END);
     PFIC_EnableIRQ(TMR_IRQn);
 }
 
+
+volatile uint32_t counter = 0;
+char *hex = "0123456789ABCDEF";
 __HIGH_CODE
 void updateVideo()
 {
+    for(int i = 0; i < 8; i++)
+        textBuffer[10][12 - i] = hex[((counter >> (i * 4)) & 15)] - 32;
     return;
 }
 
@@ -160,6 +171,9 @@ __HIGH_CODE
 void TMR_IRQHandler(void) // TMR0
 {
     uint32_t beg = frameLines[currentLine];
+    //fix sync
+    while(!SysTick->SR);
+    SysTick->SR = 0;
     R16_TMR_DMA_BEG = beg;
     R16_TMR_DMA_END = beg + 800 - (pixelsReload << 2);
 
@@ -196,5 +210,9 @@ void TMR_IRQHandler(void) // TMR0
     }
 
     currentLine++;
-    if(currentLine == 312) currentLine = 0;
+    if(currentLine == 312)
+    {
+        currentLine = 0;
+        counter++;
+    }
 }
