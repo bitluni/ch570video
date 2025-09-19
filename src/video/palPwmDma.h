@@ -77,11 +77,11 @@ const char startText[16][16] = {
     "00              ",
     "01              ",
     "02              ",
-    "03              ",
+    "03   bitluni    ",
     "04              ",
-    "05              ",
+    "05     was      ",
     "06              ",
-    "07              ",
+    "07    here!     ",
     "08              ",
     "09              ",
     "10              ",
@@ -146,26 +146,6 @@ __HIGH_CODE
 void updateVideo()
 {
     return;
-    /*int renderLine = 127;
-    while(1)
-    {
-        while(renderLine == (((currentLine >> 1) + 8) & 127));
-        int r = renderLine >> 3;
-        int y = renderLine & 7;
-        //for(int y = 0; y < 8; y++)
-        {
-            for(int x = 0; x < 8 * 16; x++)
-            {
-                int ch = textBuffer[r][x >> 3];
-                int bit = (x + 0) & 7;
-                if((font8x8[ch][y] >> bit) & 1)
-                    vram[y][x + pixelsSync + pixelsFront] = levelGrey;
-                else
-                    vram[y][x + pixelsSync + pixelsFront] = levelBlack;// + (x & 7);
-            }
-        }
-        renderLine = (renderLine + 1) & 127;
-    }*/
 }
 
 /*********************************************************************
@@ -200,16 +180,16 @@ void TMR_IRQHandler(void) // TMR0
             int renderLine = ((currentLine >> 1) + 7) & 127;
             int r = renderLine >> 3;
             int y = renderLine & 7;
-            //for(int y = 0; y < 8; y++)
+            uint32_t *p = &(vram[y][pixelsSync + pixelsFront]);
             {
                 for(int x = 0; x < 8 * 16; x++)
                 {
                     int ch = textBuffer[r][x >> 3];
                     int bit = (x + 0) & 7;
                     if((font8x8[ch][y] >> bit) & 1)
-                        vram[y][x + pixelsSync + pixelsFront] = levelGrey;
+                        p[x] = levelGrey;
                     else
-                        vram[y][x + pixelsSync + pixelsFront] = levelBlack;// + (x & 7);
+                        p[x] = levelBlack;// + (x & 7);
                 }
             }
         }
