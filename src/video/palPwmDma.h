@@ -2,18 +2,22 @@
 #include "CH57x_common.h"
 #include "font.h"
 
-const int xres = 150;
-const int pixelsSync = 16;
-const int pixelsShortSync = 8;
-const int pixelsFront = 24;
-const int pixelsBack = 10;
-const int pixelsPerLine = 200;
-const int pixelsReload = 9;
+const int xres = 300;
+const int pixelsSync = 32;
+const int pixelsShortSync = 32;
+const int pixelsFront = 42;
+const int pixelsBack = 26;
+const int pixelsPerLine = 400;
+const int pixelsReload = 19;
+const int vBlank = 22;
+
+const int rows = 33;
+const int cols = 34;
 
 const int levelSync = 0;
-const int levelBlack = 8;
-const int levelGrey = 20;
-const int levelWhite = 32;
+const int levelBlack = 4;
+const int levelGrey = 10;
+const int levelWhite = 16;
 
 __attribute__((aligned(4))) uint32_t vram[2][400 - 0];
 __attribute__((aligned(4))) uint32_t syncVram[2][400 - 0];
@@ -72,7 +76,7 @@ void setLineLongLong(uint32_t *line)
 }
 
 volatile int currentLine = 0;
-volatile uint8_t textBuffer[16][16];
+volatile uint8_t textBuffer[34][36];
 
 const char startText[16][16] = {
     "00              ",
@@ -97,25 +101,26 @@ void initVideo()
 {
     GPIOA_ModeCfg(GPIO_Pin_7, GPIO_ModeOut_PP_5mA);
 
-    TMR_PWMCycleCfg(32);
+    TMR_PWMCycleCfg(16);
 
     TMR_PWMInit(High_Level, 0);
 
     setLineLongLong(syncVram[0]);
     setLineShortShort(syncVram[1]);
 
-    for(int r = 0; r < 16; r++)
-        for(int c = 0; c < 16; c++)
-            textBuffer[r][c] = startText[r][c] - 32;
-
+    for(int r = 0; r < rows; r++)
+        for(int c = 0; c < cols; c++)
+            textBuffer[r][c] = startText[r & 15][c & 15] - 32;
+            //textBuffer[r][c] = '0' + (c % 10) - 32;
+    textBuffer[0][0] = ' ' - 32;
     for(int y = 0; y < 2; y++)
     {
         setLineSync(vram[y]);
     }
 
     int i = 0;
-    for(; i < 304; i++)
-        frameLines[i + 8] = (uint32_t)vram[((i >> 1) & 1)];
+    for(; i < 304 - vBlank; i++)
+        frameLines[i] = (uint32_t)vram[i & 1];
     frameLines[i++] = (uint32_t)syncVram[1];
     frameLines[i++] = (uint32_t)syncVram[1];
     frameLines[i++] = (uint32_t)syncVram[1];
@@ -124,12 +129,14 @@ void initVideo()
     frameLines[i++] = (uint32_t)syncVram[0] + 400;    //long short
     frameLines[i++] = (uint32_t)syncVram[1];
     frameLines[i++] = (uint32_t)syncVram[1];
+    for(int j = 0; j < vBlank; j++)
+        frameLines[i++] = (uint32_t)vram[i & 1];
 
     SysTick->CTLR = 0;
     SysTick->CNT = 0;
     SysTick->CMP = 6400;
     SysTick->SR = 0;
-    TMR_DMACfg(ENABLE, (uint32_t)frameLines[0], (uint32_t)frameLines[0] + 800 - pixelsReload * 4, Mode_Single);
+    TMR_DMACfg(ENABLE, (uint32_t)frameLines[0], (uint32_t)frameLines[0] + 1600 - pixelsReload * 4, Mode_Single);
     TMR_PWMEnable();
     TMR_Enable();
     //               enable     no int     clk/1      reload
@@ -166,7 +173,7 @@ void TMR_IRQHandler(void) // TMR0
     //fix sync
     while(!SysTick->SR);
     R16_TMR_DMA_BEG = beg;
-    R16_TMR_DMA_END = beg + 800 - (pixelsReload << 2);
+    R16_TMR_DMA_END = beg + 1600 - (pixelsReload << 2);
     TMR_PWMInit(High_Level, 0);
     TMR_PWMEnable();
     TMR_Enable();
@@ -178,32 +185,34 @@ void TMR_IRQHandler(void) // TMR0
         TMR_ITCfg(DISABLE, TMR_IT_DMA_END);
     }
 
-    if(currentLine & 1)
-    {
-        if(currentLine < 256)
-        {
-            int renderLine = ((currentLine >> 1) + 3) & 127;
-            int r = renderLine >> 3;
-            int y = renderLine & 7;
-            uint32_t *p = &(vram[y & 1][pixelsSync + pixelsFront]);
-            {
-                for(int x = 0; x < 8 * 16; x++)
-                {
-                    int ch = textBuffer[r][x >> 3];
-                    int bit = (x + 0) & 7;
-                    if((font8x8[ch][y] >> bit) & 1)
-                        p[x] = levelGrey;
-                    else
-                        p[x] = levelBlack;// + (x & 7);
-                }
-            }
-        }
-    }
-
     currentLine++;
     if(currentLine == 312)
     {
         currentLine = 0;
         counter++;
+    }
+    if(currentLine < rows << 3)
+    {
+        int renderLine = currentLine;
+        int r = renderLine >> 3;
+        int y = renderLine & 7;
+        uint32_t *p = &(vram[y & 1][pixelsSync + pixelsFront]);
+        {
+            for(int x = 0; x < 8 * cols; x++)
+            {
+                int ch = textBuffer[r][x >> 3];
+                int bit = (x + 0) & 7;
+                if((font8x8[ch][y] >> bit) & 1)
+                    p[x] = levelWhite;
+                else
+                    p[x] = levelBlack;// + (x & 7);
+            }
+        }
+    }
+    if(currentLine == (rows << 3) || currentLine == (rows << 3) + 1)
+    {
+        uint32_t *p = &(vram[currentLine & 1][pixelsSync + pixelsFront]);
+        for(int x = 0; x < 8 * cols; x++)
+            p[x] = levelBlack;
     }
 }
