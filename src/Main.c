@@ -5,6 +5,7 @@
 int main()
 {
 	HSECFG_Capacitance(HSECap_18p);
+//    SetSysClock(CLK_SOURCE_HSE_PLL_100MHz);
     SetSysClock(CLK_SOURCE_HSE_PLL_100MHz);
 
 	initVideo();

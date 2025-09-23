@@ -24,21 +24,19 @@ volatile int currentLine = 0;
 void initVideo()
 {
     GPIOA_ModeCfg(GPIO_Pin_7, GPIO_ModeOut_PP_20mA);
-    TMR_PWMInit(High_Level, PWM_Times_1);
-    TMR_PWMCycleCfg(16);
-    TMR_PWMActDataWidth(1);
-    TMR_PWMEnable();
-    TMR_Enable();
+    R16_PWM_CLOCK_DIV = 2;
+    R8_PWM_POLAR = 0;
+    R8_PWM_CONFIG = 0b110;
+    R16_PWM_CYC_VALUE = 64;
+    R32_PWM1_3_DATA = 32;
+    R8_PWM_OUT_EN = 1;
+//     PWMX_16bit_CycleCfg(CH_PWM1, 64);
+//    PWMX_16bit_ACTOUT(32);
+//    PWMX_AlterOutCfg(CH_PWM1);
+
 }
 
 __HIGH_CODE
 void updateVideo()
 {
-    static int i = 0;
-    while(1)
-    {
-        R32_TMR_FIFO = i;
-        i++;
-        i&=15;
-    }
 }

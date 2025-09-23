@@ -4,7 +4,7 @@
 
 const int rows = 34;
 const int cols = 37;
-
+//296x272
 const int xres = 300;
 const int yres = rows * 8;
 const int pixelsPerLine = 400;
@@ -20,15 +20,22 @@ const int linesBlankFront = 20;
 const int linesSync = 8;
 const int linesBlankBack = linesTotal - linesSync - linesBlankFront - yres;
 
+//AV
 const int levelSync = 0;
 const int levelBlack = 4;
 const int levelGrey = 10;
 const int levelWhite = 16;
+//System B
+/*const int levelSync = 16;
+const int levelBlack = 12;
+const int levelGrey = 8;
+const int levelWhite = 0;*/
 
 __attribute__((aligned(4))) uint32_t vram[2][400 - 0];
 
 volatile int currentLine = 0;
 volatile uint8_t textBuffer[34][37];
+volatile uint8_t rleBuffer[4000];
 
 void initVideo()
 {
@@ -53,15 +60,24 @@ void initVideo()
     PFIC_EnableIRQ(TMR_IRQn);
 }
 
+#include "rick.h"
 
 volatile uint32_t counter = 0;
 char *hex = "0123456789ABCDEF";
 __HIGH_CODE
 void updateVideo()
 {
-    for(int i = 0; i < 8; i++)
-        textBuffer[10][12 - i] = hex[((counter >> (i * 4)) & 15)] - 32;
-    return;
+    static int lastFrame = 0;
+    if(lastFrame != (counter >> 2))
+    {
+        lastFrame = counter >> 2;
+        int f = lastFrame % 20;
+        for(int i = 0; i < rick_offsets[f + 1] - rick_offsets[f] && i < 4000; i++)
+            rleBuffer[i] = rick_data[rick_offsets[f] + i];
+    }
+//    for(int i = 0; i < 8; i++)
+//        textBuffer[10][12 - i] = hex[((counter >> (i * 4)) & 15)] - 32;
+//    return;
 }
 
 //using pragmas to prevent GCC to replace loops by memcpy that is not in SRAM
@@ -125,6 +141,10 @@ void firstBlank(uint32_t *line)
 
 #pragma GCC pop_options
 
+int rleBufferPos = 0;
+int rleLength = 0;
+int rleColor = 0;
+
 /*********************************************************************
  * @fn      TMR_IRQHandler
  *
@@ -144,6 +164,8 @@ void TMR_IRQHandler(void) // TMR0
         if(currentLine == linesTotal)
         {
             currentLine = 0;
+            rleBufferPos = 0;
+            rleLength = 0;
             counter++;
         }
         uint32_t *line = vram[b ^ 1];
@@ -169,7 +191,25 @@ void TMR_IRQHandler(void) // TMR0
             int renderLine = currentLine - linesBlankFront - linesSync;
             if(renderLine < rows * 8)
             {
-                int r = renderLine >> 3;
+                int x = 0;
+                while(x < 8 * cols)
+                {
+                    if(rleLength == 0)
+                    {
+                        if(rleBufferPos == 4000) break;
+                        rleLength = rleBuffer[rleBufferPos++];
+                        rleColor = rleBuffer[rleBufferPos++];
+                    }
+                    while(rleLength)
+                    {
+                        pixels[x++] = levelBlack + rleColor;
+                        rleLength--;
+                        if(x == 8*cols) break;
+                    }
+                }/**/
+
+
+                /*int r = renderLine >> 3;
                 int y = renderLine & 7;
                 {
                     for(int x = 0; x < 8 * cols; x++)
@@ -181,7 +221,7 @@ void TMR_IRQHandler(void) // TMR0
                         else
                             pixels[x] = levelBlack;// + (x & 7);
                     }
-                }
+                }/**/
             }
             else
             if(renderLine < rows * 8 + 2)

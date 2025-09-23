@@ -32,9 +32,9 @@
 </div>
 
 <div class="row">
-  <label>X</label><input id="xres" type="number" value="300" style="width:60px">
-  <label>Y</label><input id="yres" type="number" value="280" style="width:60px">
-  <label>Levels</label><input id="levels" type="number" value="12" style="width:80px">
+  <label>X</label><input id="xres" type="number" value="296" style="width:60px">
+  <label>Y</label><input id="yres" type="number" value="272" style="width:60px">
+  <label>Levels</label><input id="levels" type="number" value="7" style="width:80px">
   <label>Offset</label><input id="valueOffset" type="number" value="1" style="width:60px">
   <label>Gamma</label><input id="gamma" type="number" value="1.0" step="0.1" style="width:60px">
   <label>Detail reduce</label><input id="reduceDetail" type="range" min="0" max="5" value="1"><span id="reduceDetailVal">0</span>
@@ -42,7 +42,7 @@
 
 <div class="row">
   <label>Dark clip</label><input id="darkClip" type="range" min="0" max="255" value="0"><span id="darkClipVal">0</span>
-  <label>Bright clip</label><input id="brightClip" type="range" min="0" max="255" value="159"><span id="brightClipVal">255</span>
+  <label>Bright clip</label><input id="brightClip" type="range" min="0" max="255" value="255"><span id="brightClipVal">255</span>
 </div>
 
 <div class="row">
@@ -257,7 +257,7 @@ function rleDiff(prev,cur){
   const out=[]; let run=0,color=0;
   function flush(){ if(run>0){ out.push(run,color); run=0; } }
   for(let i=0;i<cur.length;i++){
-    let v=(Math.abs(cur[i]-prev[i]) < 3)?0:cur[i];
+    let v=cur[i];//(Math.abs(cur[i]-prev[i]) < 1)?0:cur[i];
     if(v===color && run<255){ run++; }
     else{ flush(); color=v; run=1; }
   }

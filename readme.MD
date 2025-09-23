@@ -1,5 +1,8 @@
 ## TODO
 
+* VHF PAL
+* pwm16
+* spi
 * font from mother in Alien
 * design PCB
 * make enclosure
